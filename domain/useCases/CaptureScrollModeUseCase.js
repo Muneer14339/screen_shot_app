@@ -1,14 +1,9 @@
-/**
- * Use Case: Capture Scroll Mode
- * Business logic for manual scroll & capture mode
- */
+// domain/useCases/CaptureScrollModeUseCase.js
 export class CaptureScrollModeUseCase {
   constructor(screenshotRepository) {
     this.screenshotRepository = screenshotRepository;
     this.isCapturing = false;
-    this.capturedSections = [];
-    this.lastScrollPosition = 0;
-    this.captureCount = 0;
+    this.startScrollY = 0;
     this.config = null;
   }
 
@@ -19,33 +14,16 @@ export class CaptureScrollModeUseCase {
       }
 
       this.isCapturing = true;
-      this.capturedSections = [];
-      this.lastScrollPosition = 0;
-      this.captureCount = 0;
       this.config = config;
 
-      // Enable clean content mode if requested
-      if (config.cleanContentMode) {
-        onProgress?.({ status: 'Preparing clean content...', progress: 0 });
-        await this.screenshotRepository.enableCleanContentMode();
-        await this._delay(500);
-      }
-
-      onProgress?.({ status: 'Scroll capture mode active', progress: 0 });
-
-      // Initialize scroll listener
-      await this.screenshotRepository.initializeScrollListener(
-        this._onScroll.bind(this),
-        config
-      );
-
-      // Capture initial viewport
-      const initialCapture = await this.screenshotRepository.captureCurrentViewport();
-      this.capturedSections.push({
-        data: initialCapture,
-        scrollY: 0
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const [scrollResult] = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => window.scrollY
       });
-      this.captureCount = 1;
+      this.startScrollY = scrollResult.result;
+
+      onProgress?.({ status: 'Scroll to desired end position, then click Stop', progress: 0 });
 
       return { success: true };
     } catch (error) {
@@ -62,27 +40,71 @@ export class CaptureScrollModeUseCase {
 
       this.isCapturing = false;
 
-      onProgress?.({ status: 'Processing captured sections...', progress: 50 });
+      if (config && config.cleanContentMode) {
+        onProgress?.({ status: 'Preparing clean content...', progress: 0 });
+        await this.screenshotRepository.enableCleanContentMode();
+        await this._delay(500);
+      }
 
-      // Remove scroll listener
-      await this.screenshotRepository.removeScrollListener();
+      onProgress?.({ status: 'Analyzing range...', progress: 5 });
+      
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const [scrollResult] = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => window.scrollY
+      });
+      const endScrollY = scrollResult.result;
 
-      // Restore original content if clean mode was enabled
+      const dimensions = await this.screenshotRepository.getPageDimensions();
+      const viewportHeight = dimensions.viewportHeight;
+      
+      const startY = Math.min(this.startScrollY, endScrollY);
+      const endY = Math.max(this.startScrollY, endScrollY) + viewportHeight;
+      const captureHeight = endY - startY;
+      const screenshotsNeeded = Math.ceil(captureHeight / viewportHeight);
+
+      const screenshots = [];
+      const minCaptureInterval = 600;
+      let lastCaptureTime = 0;
+      
+      for (let i = 0; i < screenshotsNeeded; i++) {
+        const now = Date.now();
+        const timeSinceLastCapture = now - lastCaptureTime;
+        
+        if (timeSinceLastCapture < minCaptureInterval) {
+          await this._delay(minCaptureInterval - timeSinceLastCapture);
+        }
+
+        const scrollY = startY + (i * viewportHeight);
+        const progress = 5 + Math.round(((i + 1) / screenshotsNeeded) * 85);
+        
+        onProgress?.({ 
+          status: `Capturing section ${i + 1}/${screenshotsNeeded}...`, 
+          progress 
+        });
+
+        if (i === 1 && config && config.cleanContentMode) {
+          await this.screenshotRepository.hideStickyElements();
+        }
+
+        lastCaptureTime = Date.now();
+        const screenshot = await this.screenshotRepository.captureViewport(scrollY);
+        screenshots.push(screenshot);
+
+        await this._delay(Math.max(600, minCaptureInterval));
+      }
+
+      onProgress?.({ status: 'Stitching images...', progress: 95 });
+
+      const stitchedImage = await this.screenshotRepository.stitchScreenshots(
+        screenshots,
+        dimensions
+      );
+
       if (config && config.cleanContentMode) {
         await this.screenshotRepository.showStickyElements();
         await this.screenshotRepository.disableCleanContentMode();
       }
-
-      // Get final dimensions
-      const dimensions = await this.screenshotRepository.getPageDimensions();
-
-      onProgress?.({ status: 'Stitching images...', progress: 75 });
-
-      // Stitch all captured sections
-      const stitchedImage = await this.screenshotRepository.stitchScrollCaptures(
-        this.capturedSections,
-        dimensions
-      );
 
       onProgress?.({ status: 'Complete!', progress: 100 });
 
@@ -91,21 +113,18 @@ export class CaptureScrollModeUseCase {
         data: stitchedImage,
         dimensions: {
           width: dimensions.viewportWidth,
-          height: Math.max(...this.capturedSections.map(s => s.scrollY)) + dimensions.viewportHeight
+          height: captureHeight
         }
       };
     } catch (error) {
       this.isCapturing = false;
       
-      // Try to restore content on error
       try {
         if (config && config.cleanContentMode) {
           await this.screenshotRepository.showStickyElements();
           await this.screenshotRepository.disableCleanContentMode();
         }
-      } catch (e) {
-        // Ignore cleanup errors
-      }
+      } catch (e) {}
       
       return { success: false, error: error.message };
     }
@@ -113,38 +132,6 @@ export class CaptureScrollModeUseCase {
 
   _delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
-  async _onScroll(scrollY, config) {
-    if (!this.isCapturing) return;
-
-    // Check if we've scrolled enough to capture new content
-    const scrollDelta = Math.abs(scrollY - this.lastScrollPosition);
-    const dimensions = await this.screenshotRepository.getPageDimensions();
-
-    if (scrollDelta > dimensions.viewportHeight * 0.5) {
-      // Hide sticky elements after second capture
-      if (this.captureCount === 1 && this.config && this.config.cleanContentMode) {
-        await this.screenshotRepository.hideStickyElements();
-      }
-      
-      // Capture new section
-      const capture = await this.screenshotRepository.captureCurrentViewport();
-      
-      // Check for duplicates
-      const isDuplicate = this.capturedSections.some(
-        section => Math.abs(section.scrollY - scrollY) < 50
-      );
-
-      if (!isDuplicate) {
-        this.capturedSections.push({
-          data: capture,
-          scrollY: scrollY
-        });
-        this.lastScrollPosition = scrollY;
-        this.captureCount++;
-      }
-    }
   }
 
   isCaptureActive() {

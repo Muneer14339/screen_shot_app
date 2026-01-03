@@ -1,7 +1,4 @@
-/**
- * Repository: Screenshot Repository
- * Handles screenshot capture operations
- */
+// data/repositories/ScreenshotRepository.js
 export class ScreenshotRepository {
   constructor(chromeDataSource) {
     this.chromeDataSource = chromeDataSource;
@@ -21,18 +18,6 @@ export class ScreenshotRepository {
 
   async stitchScreenshots(screenshots, dimensions) {
     return await this.chromeDataSource.stitchImages(screenshots, dimensions);
-  }
-
-  async stitchScrollCaptures(captures, dimensions) {
-    return await this.chromeDataSource.stitchScrollCaptures(captures, dimensions);
-  }
-
-  async initializeScrollListener(callback, config) {
-    return await this.chromeDataSource.initializeScrollListener(callback, config);
-  }
-
-  async removeScrollListener() {
-    return await this.chromeDataSource.removeScrollListener();
   }
 
   async enableCleanContentMode() {

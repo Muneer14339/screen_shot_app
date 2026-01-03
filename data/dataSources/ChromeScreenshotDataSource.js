@@ -60,72 +60,102 @@ export class ChromeScreenshotDataSource {
     return dataUrl;
   }
 
-  async enableCleanContentMode() {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: () => {
-        // Store original state
-        window.__originalDisplay = window.__originalDisplay || {};
-        window.__stickyElements = window.__stickyElements || [];
-        
-        // CONSERVATIVE selector list - only remove obvious ads and clutter
-        const unwantedSelectors = [
-          // Only clear advertisements
-          'iframe[src*="doubleclick"]', 
-          'iframe[src*="googlesyndication"]',
-          'iframe[src*="advertising"]',
-          'ins.adsbygoogle',
-          '[id^="google_ads"]',
-          '[class*="advertisement"]',
-          '[id*="advertisement"]',
-          
-          // Only obvious ad containers (be specific)
-          '.ad-container', '.ads-container', '.banner-ad',
-          '#ad-banner', '#ads-banner',
-          
-          // Popups and overlays (these are annoying)
-          '[class*="popup"][class*="overlay"]',
-          '[class*="modal"][class*="overlay"]',
-          '.popup-overlay', '.modal-overlay'
-        ];
-        
-        // Hide unwanted elements
-        unwantedSelectors.forEach(selector => {
-          try {
-            const elements = document.querySelectorAll(selector);
-            elements.forEach(el => {
-              if (!window.__originalDisplay[selector]) {
-                window.__originalDisplay[selector] = [];
-              }
-              window.__originalDisplay[selector].push({
-                element: el,
-                display: el.style.display
-              });
-              el.style.display = 'none';
-            });
-          } catch (e) {
-            // Ignore selector errors
-          }
-        });
-        
-        // Handle sticky/fixed elements - store them for later
-        const allElements = document.querySelectorAll('*');
-        allElements.forEach(el => {
-          const style = window.getComputedStyle(el);
-          if (style.position === 'fixed' || style.position === 'sticky') {
-            window.__stickyElements.push({
-              element: el,
-              position: style.position,
-              top: style.top,
-              zIndex: style.zIndex
-            });
-          }
-        });
+  // data/dataSources/ChromeScreenshotDataSource.js
+async enableCleanContentMode() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  
+  await chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    func: () => {
+      window.__originalDisplay = window.__originalDisplay || {};
+      window.__stickyElements = window.__stickyElements || [];
+      
+      // Hide scrollbar
+      if (!window.__originalScrollbarStyle) {
+        window.__originalScrollbarStyle = document.documentElement.style.overflow;
+        document.documentElement.style.overflow = 'hidden';
       }
-    });
-  }
+      
+      const unwantedSelectors = [
+        'iframe[src*="doubleclick"]', 
+        'iframe[src*="googlesyndication"]',
+        'iframe[src*="advertising"]',
+        'ins.adsbygoogle',
+        '[id^="google_ads"]',
+        '[class*="advertisement"]',
+        '[id*="advertisement"]',
+        '.ad-container', '.ads-container', '.banner-ad',
+        '#ad-banner', '#ads-banner',
+        '[class*="popup"][class*="overlay"]',
+        '[class*="modal"][class*="overlay"]',
+        '.popup-overlay', '.modal-overlay'
+      ];
+      
+      unwantedSelectors.forEach(selector => {
+        try {
+          const elements = document.querySelectorAll(selector);
+          elements.forEach(el => {
+            if (!window.__originalDisplay[selector]) {
+              window.__originalDisplay[selector] = [];
+            }
+            window.__originalDisplay[selector].push({
+              element: el,
+              display: el.style.display
+            });
+            el.style.display = 'none';
+          });
+        } catch (e) {}
+      });
+      
+      const allElements = document.querySelectorAll('*');
+      allElements.forEach(el => {
+        const style = window.getComputedStyle(el);
+        if (style.position === 'fixed' || style.position === 'sticky') {
+          window.__stickyElements.push({
+            element: el,
+            position: style.position,
+            top: style.top,
+            zIndex: style.zIndex
+          });
+        }
+      });
+    }
+  });
+}
+
+async disableCleanContentMode() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  
+  await chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    func: () => {
+      // Restore scrollbar
+      if (window.__originalScrollbarStyle !== undefined) {
+        document.documentElement.style.overflow = window.__originalScrollbarStyle;
+        delete window.__originalScrollbarStyle;
+      }
+      
+      if (!window.__originalDisplay) return;
+      
+      Object.keys(window.__originalDisplay).forEach(selector => {
+        window.__originalDisplay[selector].forEach(item => {
+          item.element.style.display = item.display;
+        });
+      });
+      
+      if (window.__stickyElements) {
+        window.__stickyElements.forEach(item => {
+          item.element.style.position = item.position;
+          item.element.style.top = item.top;
+          item.element.style.zIndex = item.zIndex;
+        });
+        delete window.__stickyElements;
+      }
+      
+      delete window.__originalDisplay;
+    }
+  });
+}
 
   async hideStickyElements() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -159,36 +189,6 @@ export class ChromeScreenshotDataSource {
     });
   }
 
-  async disableCleanContentMode() {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: () => {
-        if (!window.__originalDisplay) return;
-        
-        // Restore all hidden elements
-        Object.keys(window.__originalDisplay).forEach(selector => {
-          window.__originalDisplay[selector].forEach(item => {
-            item.element.style.display = item.display;
-          });
-        });
-        
-        // Restore sticky elements
-        if (window.__stickyElements) {
-          window.__stickyElements.forEach(item => {
-            item.element.style.position = item.position;
-            item.element.style.top = item.top;
-            item.element.style.zIndex = item.zIndex;
-          });
-          delete window.__stickyElements;
-        }
-        
-        delete window.__originalDisplay;
-      }
-    });
-  }
-
   async captureCurrentViewport() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     
@@ -199,26 +199,23 @@ export class ChromeScreenshotDataSource {
     return dataUrl;
   }
 
-  async stitchImages(screenshots, dimensions) {
-    // Create canvas - use viewport width (what's actually visible)
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
+  // data/dataSources/ChromeScreenshotDataSource.js (stitchImages method ko replace karo)
+async stitchImages(screenshots, dimensions, startY = 0) {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  
+  canvas.width = dimensions.viewportWidth;
+  canvas.height = screenshots.length * dimensions.viewportHeight;
+
+  for (let i = 0; i < screenshots.length; i++) {
+    const img = await this._loadImage(screenshots[i]);
+    const yPosition = i * dimensions.viewportHeight;
     
-    // Use viewportWidth instead of full scrollWidth to avoid stretching
-    canvas.width = dimensions.viewportWidth;
-    canvas.height = Math.min(dimensions.scrollHeight, 32000);
-
-    // Load and draw each screenshot
-    for (let i = 0; i < screenshots.length; i++) {
-      const img = await this._loadImage(screenshots[i]);
-      const yPosition = i * dimensions.viewportHeight;
-      
-      // Draw at actual size without scaling
-      ctx.drawImage(img, 0, yPosition, dimensions.viewportWidth, dimensions.viewportHeight);
-    }
-
-    return canvas.toDataURL('image/png');
+    ctx.drawImage(img, 0, yPosition, dimensions.viewportWidth, dimensions.viewportHeight);
   }
+
+  return canvas.toDataURL('image/png');
+}
 
   async stitchScrollCaptures(captures, dimensions) {
     // Sort captures by scroll position

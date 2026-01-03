@@ -1,7 +1,4 @@
-/**
- * Domain Entity: CaptureConfig
- * Represents the configuration for screenshot capture
- */
+// domain/entities/CaptureConfig.js
 export class CaptureConfig {
   constructor({
     mode = 'full',
@@ -9,20 +6,20 @@ export class CaptureConfig {
     quality = 0.95,
     maxCanvasHeight = 32000,
     viewportHeight = 0,
-    scrollDelay = 100,
+    scrollDelay = 600,
     chunkSize = 5000,
     cleanContentMode = true,
     startFromCurrentPosition = false
   } = {}) {
-    this.mode = mode; // 'full' or 'scroll'
-    this.format = format; // 'png', 'jpeg', 'pdf'
+    this.mode = mode;
+    this.format = format;
     this.quality = quality;
     this.maxCanvasHeight = maxCanvasHeight;
     this.viewportHeight = viewportHeight;
     this.scrollDelay = scrollDelay;
     this.chunkSize = chunkSize;
-    this.cleanContentMode = cleanContentMode; // Remove ads and unwanted elements
-    this.startFromCurrentPosition = startFromCurrentPosition; // Start from current scroll or top
+    this.cleanContentMode = cleanContentMode;
+    this.startFromCurrentPosition = startFromCurrentPosition;
   }
 
   isFullPageMode() {

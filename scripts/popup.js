@@ -96,35 +96,36 @@ class PopupController {
     }
   }
 
-  async handleScrollModeStart() {
-    try {
-      const cleanMode = this.elements.cleanModeToggle.checked;
-      const config = new CaptureConfig({ 
-        mode: 'scroll',
-        cleanContentMode: cleanMode
-      });
-      
-      this.currentScrollConfig = config; // Store for stop handler
-      
-      const result = await this.scrollModeUseCase.startCapture(
-        config,
-        this.updateProgress.bind(this)
-      );
+  // scripts/popup.js (relevant part only)
+async handleScrollModeStart() {
+  try {
+    const cleanMode = this.elements.cleanModeToggle.checked;
+    const config = new CaptureConfig({ 
+      mode: 'scroll',
+      cleanContentMode: cleanMode
+    });
+    
+    this.currentScrollConfig = config;
+    
+    const result = await this.scrollModeUseCase.startCapture(
+      config,
+      this.updateProgress.bind(this)
+    );
 
-      if (result.success) {
-        this.elements.scrollModeBtn.classList.add('hidden');
-        this.elements.fullPageBtn.classList.add('hidden');
-        this.elements.stopBtn.classList.remove('hidden');
-        this.elements.cleanModeToggle.disabled = true; // Disable toggle during capture
-        this.elements.startPositionToggle.disabled = true; // Disable toggle during capture
-        this.updateStatus('Scroll capture active - Scroll to capture content', 'active');
-      } else {
-        this.showError(result.error);
-      }
-    } catch (error) {
-      this.showError(error.message);
+    if (result.success) {
+      this.elements.scrollModeBtn.classList.add('hidden');
+      this.elements.fullPageBtn.classList.add('hidden');
+      this.elements.stopBtn.classList.remove('hidden');
+      this.elements.cleanModeToggle.disabled = true;
+      this.elements.startPositionToggle.disabled = true;
+      this.updateStatus('Scroll to desired end position, then click Stop', 'active');
+    } else {
+      this.showError(result.error);
     }
+  } catch (error) {
+    this.showError(error.message);
   }
+}
 
   async handleScrollModeStop() {
     try {
