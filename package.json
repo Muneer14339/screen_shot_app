@@ -1,0 +1,28 @@
+{
+  "name": "webcapture-pro",
+  "version": "1.0.0",
+  "description": "Professional offline screenshot to PDF Chrome extension",
+  "scripts": {
+    "install-libs": "npm install pdf-lib@1.17.1 && cp node_modules/pdf-lib/dist/pdf-lib.min.js lib/",
+    "clean": "rm -rf node_modules package-lock.json",
+    "verify": "ls -lh lib/pdf-lib.min.js",
+    "package": "zip -r webcapture-pro-v1.0.0.zip . -x '*.git*' 'node_modules/*' 'package-lock.json' '.DS_Store'"
+  },
+  "keywords": [
+    "chrome-extension",
+    "screenshot",
+    "pdf",
+    "offline",
+    "privacy",
+    "clean-architecture"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "pdf-lib": "^1.17.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "your-repository-url"
+  }
+}

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebCapture Pro</title>
+  <link rel="stylesheet" href="styles/popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="12" y1="22.08" x2="12" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <h1>WebCapture Pro</h1>
+      </div>
+      <p class="tagline">Offline Screenshot & PDF</p>
+    </div>
+
+    <!-- Status Section -->
+    <div class="status-section" id="statusSection">
+      <div class="status-indicator">
+        <div class="status-dot"></div>
+        <span id="statusText">Ready to capture</span>
+      </div>
+      <div class="progress-container hidden" id="progressContainer">
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <span class="progress-text" id="progressText">0%</span>
+      </div>
+    </div>
+
+    <!-- Clean Content Mode Toggle -->
+    <div class="settings-section">
+      <label class="toggle-container">
+        <input type="checkbox" id="cleanModeToggle" checked>
+        <span class="toggle-slider"></span>
+        <div class="toggle-label">
+          <span class="toggle-title">Clean Content Mode</span>
+          <span class="toggle-subtitle">Remove ads and unwanted elements</span>
+        </div>
+      </label>
+
+      <label class="toggle-container" style="margin-top: 12px;">
+        <input type="checkbox" id="startPositionToggle">
+        <span class="toggle-slider"></span>
+        <div class="toggle-label">
+          <span class="toggle-title">Capture from Current Position</span>
+          <span class="toggle-subtitle">Start from where you are (otherwise starts from top)</span>
+        </div>
+      </label>
+    </div>
+
+    <!-- Capture Modes -->
+    <div class="modes-section">
+      <h3>Capture Mode</h3>
+      
+      <!-- Full Page Capture -->
+      <button class="mode-btn primary" id="fullPageBtn">
+        <div class="btn-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
+            <line x1="3" y1="9" x2="21" y2="9" stroke="currentColor" stroke-width="2"/>
+            <line x1="9" y1="21" x2="9" y2="9" stroke="currentColor" stroke-width="2"/>
+          </svg>
+        </div>
+        <div class="btn-content">
+          <span class="btn-title">Full Page Capture</span>
+          <span class="btn-subtitle">Auto-scroll & capture loaded content</span>
+        </div>
+      </button>
+
+      <!-- Scroll & Capture Mode -->
+      <button class="mode-btn secondary" id="scrollModeBtn">
+        <div class="btn-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M12 5v14M19 12l-7 7-7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="btn-content">
+          <span class="btn-title">Scroll & Capture</span>
+          <span class="btn-subtitle">Manually scroll to capture dynamic content</span>
+        </div>
+      </button>
+
+      <!-- Stop Capture (Hidden initially) -->
+      <button class="mode-btn stop hidden" id="stopBtn">
+        <div class="btn-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <rect x="6" y="6" width="12" height="12" fill="currentColor"/>
+          </svg>
+        </div>
+        <div class="btn-content">
+          <span class="btn-title">Stop Capture</span>
+          <span class="btn-subtitle">Finish and export</span>
+        </div>
+      </button>
+    </div>
+
+    <!-- Export Options -->
+    <div class="export-section hidden" id="exportSection">
+      <h3>Export As</h3>
+      <div class="export-buttons">
+        <button class="export-btn" id="exportPngBtn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
+            <path d="M21 15l-5-5L5 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          PNG Image
+        </button>
+        <button class="export-btn" id="exportJpegBtn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
+            <path d="M21 15l-5-5L5 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          JPEG Image
+        </button>
+        <button class="export-btn" id="exportPdfBtn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <polyline points="14 2 14 8 20 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          PDF Document
+        </button>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <div class="privacy-badge">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>100% Offline & Private</span>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="scripts/popup.js"></script>
+</body>
+</html>
