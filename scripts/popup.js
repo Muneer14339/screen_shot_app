@@ -156,38 +156,38 @@ async handleScrollModeStart() {
     }
   }
 
-  async handleExport(format) {
-    try {
-      if (!this.capturedData) {
-        throw new Error('No captured data available');
-      }
-
-      this.updateStatus(`Preparing ${format.toUpperCase()} export...`, 'processing');
-      this.disableButtons();
-
-      if (format === 'pdf') {
-        const pdfUrl = await this.pdfGenerator.generatePDF(
-          this.capturedData,
-          this.captureDimensions
-        );
-        this.downloadFile(pdfUrl, `screenshot-${Date.now()}.pdf`);
-      } else {
-        const imageUrl = this.convertImageFormat(this.capturedData, format);
-        this.downloadFile(imageUrl, `screenshot-${Date.now()}.${format}`);
-      }
-
-      this.updateStatus('Export complete!', 'success');
-      
-      // Reset after 2 seconds
-      setTimeout(() => {
-        this.resetUI();
-      }, 2000);
-    } catch (error) {
-      this.showError(error.message);
-    } finally {
-      this.enableButtons();
+  // scripts/popup.js
+async handleExport(format) {
+  try {
+    if (!this.capturedData) {
+      throw new Error('No captured data available');
     }
+
+    this.updateStatus(`Preparing ${format.toUpperCase()} export...`, 'processing');
+    this.disableButtons();
+
+    if (format === 'pdf') {
+      const pdfUrl = await this.pdfGenerator.generatePDF(
+        this.capturedData,
+        this.captureDimensions
+      );
+      this.downloadFile(pdfUrl, `screenshot-${Date.now()}.pdf`);
+    } else {
+      const imageUrl = await this.convertImageFormat(this.capturedData, format);
+      this.downloadFile(imageUrl, `screenshot-${Date.now()}.${format}`);
+    }
+
+    this.updateStatus('Export complete!', 'success');
+    
+    setTimeout(() => {
+      this.resetUI();
+    }, 2000);
+  } catch (error) {
+    this.showError(error.message);
+  } finally {
+    this.enableButtons();
   }
+}
 
   convertImageFormat(dataUrl, format) {
     if (format === 'png') {
